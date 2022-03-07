@@ -15,15 +15,56 @@ typedef struct{
     int32_t Out_temp;
 }PI_str;
 
+typedef struct{
+    uint8_t Spd_Tick;
+    uint32_t Theta_temp;
+    int16_t PresentSpd;
+    int16_t TargetSpd;
+
+    uint32_t Theta;
+    uint8_t Np;
+
+    int16_t SinTheta;
+    int16_t CosTheta; 
+
+    int16_t TargetId;
+    int16_t TargetIq;
+
+    int16_t Ux;       
+    int16_t Uy;
+
+    int16_t U1;    
+    int16_t U2;   
+    int16_t U3;       
+
+    uint8_t Sector;
+
+    uint16_t CCRa;
+    uint16_t CCRb; 
+    uint16_t CCRc;
+
+    int16_t Ia;
+    int16_t Ic;
+
+    int16_t Ix;       
+    int16_t Iy;
+
+    int16_t PresentId;
+    int16_t PresentIq;
+
+    int16_t PresentUd;
+    int16_t PresentUq;
+
+    int16_t TargetUd;
+    int16_t TargetUq;
+
+    uint8_t Mode;
+}DataIO_str;
+
 #define PI acos(-1)
 
-extern void FOC(PI_str* D_PI,   PI_str* Q_PI,  PI_str* Spd_PI,    uint8_t* Spd_Tick,
-                double  iTheta, double  iNp,   double* oSinTheta, double*  oCosTheta, 
-                double  iId,    double  iIq,   double* oUx,       double*  oUy,
-                double* oU1,    double* oU2,   double* oU3,       double*  oSector,
-                double* oCCRa,  double* oCCRb, double* oCCRc,
-                double  iIa,    double  iIc,   double* oIx,       double*  oIy,
-                double* oId,    double* oIq,   double* oUd,       double*  oUq,
-                double* oSpd);
+extern uint32_t GetTheta(double iTheta);
+extern int16_t GetCur(double iI);
+extern void FOC(PI_str* D_PI, PI_str* Q_PI, PI_str* Spd_PI, DataIO_str* DataIO);
 
 #endif

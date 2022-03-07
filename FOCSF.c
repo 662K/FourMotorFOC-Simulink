@@ -7,24 +7,29 @@
 PI_str D_PI  = {0};
 PI_str Q_PI  = {0};
 PI_str Spd_PI  = {0};
-
-uint8_t Spd_Tick = 0;
+DataIO_str DataIO = {0};
 
 /* 模块初始化函数 */
 static void mdlInitializeSizes(SimStruct *S)
 {
-    D_PI.ui  = 0;
-    Q_PI.ui  = 0;
-    Spd_PI.ui  = 0;
+    memset(&D_PI, 0, sizeof(D_PI));
+    memset(&Q_PI, 0, sizeof(Q_PI));
+    memset(&Spd_PI, 0, sizeof(Spd_PI));
 
-    Spd_Tick = 0;
+    memset(&DataIO, 0, sizeof(DataIO));
     /* 设置参数数量 */
-    ssSetNumSFcnParams(S, 1);
+    ssSetNumSFcnParams(S, 7);
 
     ssSetSFcnParamTunable(S, 0, 1);
+    ssSetSFcnParamTunable(S, 1, 1);
+    ssSetSFcnParamTunable(S, 2, 1);
+    ssSetSFcnParamTunable(S, 3, 1);
+    ssSetSFcnParamTunable(S, 4, 1);
+    ssSetSFcnParamTunable(S, 5, 1);
+    ssSetSFcnParamTunable(S, 6, 1);
 
     /* 设置输入端口数量 */
-    if (!ssSetNumInputPorts(S, 5)) return;
+    if (!ssSetNumInputPorts(S, 9)) return;
 
     /* 配置输入端口 */
     ssSetInputPortDataType(S, 0, SS_DOUBLE);   
@@ -50,7 +55,27 @@ static void mdlInitializeSizes(SimStruct *S)
     ssSetInputPortDataType(S, 4, SS_DOUBLE);   
     ssSetInputPortWidth(S, 4, 1);
     ssSetInputPortDirectFeedThrough(S, 4, 1);
-    ssSetInputPortRequiredContiguous(S, 4, 1);	
+    ssSetInputPortRequiredContiguous(S, 4, 1);
+
+    ssSetInputPortDataType(S, 5, SS_DOUBLE);   
+    ssSetInputPortWidth(S, 5, 1);
+    ssSetInputPortDirectFeedThrough(S, 5, 1);
+    ssSetInputPortRequiredContiguous(S, 5, 1);	
+
+    ssSetInputPortDataType(S, 6, SS_DOUBLE);   
+    ssSetInputPortWidth(S, 6, 1);
+    ssSetInputPortDirectFeedThrough(S, 6, 1);
+    ssSetInputPortRequiredContiguous(S, 6, 1);	
+
+    ssSetInputPortDataType(S, 7, SS_DOUBLE);   
+    ssSetInputPortWidth(S, 7, 1);
+    ssSetInputPortDirectFeedThrough(S, 7, 1);
+    ssSetInputPortRequiredContiguous(S, 7, 1);	
+
+    ssSetInputPortDataType(S, 8, SS_DOUBLE);   
+    ssSetInputPortWidth(S, 8, 1);
+    ssSetInputPortDirectFeedThrough(S, 8, 1);
+    ssSetInputPortRequiredContiguous(S, 8, 1);	
 
     /* 设置输出端口数量 */
     if (!ssSetNumOutputPorts(S, 18)) return;
@@ -128,8 +153,18 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     real_T* iIq = (real_T*) ssGetInputPortSignal(S, 2);
     real_T* iIa = (real_T*) ssGetInputPortSignal(S, 3);
     real_T* iIc = (real_T*) ssGetInputPortSignal(S, 4);
+    real_T* iUd = (real_T*) ssGetInputPortSignal(S, 5);
+    real_T* iUq = (real_T*) ssGetInputPortSignal(S, 6);
+    real_T* iMode = (real_T*) ssGetInputPortSignal(S, 7);
+    real_T* iSpd = (real_T*) ssGetInputPortSignal(S, 8);
     
     real_T* iNp = (real_T*) ssGetRunTimeParamInfo(S, 0)->data;
+    real_T* CurKp = (real_T*) ssGetRunTimeParamInfo(S, 1)->data;
+    real_T* CurKi = (real_T*) ssGetRunTimeParamInfo(S, 2)->data;
+    real_T* VolMax = (real_T*) ssGetRunTimeParamInfo(S, 3)->data;
+    real_T* SpdKp = (real_T*) ssGetRunTimeParamInfo(S, 4)->data;
+    real_T* SpdKi = (real_T*) ssGetRunTimeParamInfo(S, 5)->data;
+    real_T* CurMax = (real_T*) ssGetRunTimeParamInfo(S, 6)->data;
 
     real_T* oSinTheta = (real_T*) ssGetOutputPortSignal(S, 0);
     real_T* oCosTheta = (real_T*) ssGetOutputPortSignal(S, 1);
@@ -150,27 +185,58 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     real_T* oUq = (real_T*) ssGetOutputPortSignal(S, 16);
     real_T* oSpd = (real_T*) ssGetOutputPortSignal(S, 17);
 
-    D_PI.Kp     = 1103;
-    D_PI.Ki     = 44;
-    D_PI.Max    = 32767;
+    D_PI.Kp    = *CurKp;
+    D_PI.Ki    = *CurKi;
+    D_PI.Max   = *VolMax;
     
-    Q_PI.Kp     = 1103;
-    Q_PI.Ki     = 44;
-    Q_PI.Max    = 32767;
+    Q_PI.Kp    = *CurKp;
+    Q_PI.Ki    = *CurKi;
+    Q_PI.Max   = *VolMax;
     
-    Spd_PI.Kp     = 6064;
-    Spd_PI.Ki     = 381;
-    Spd_PI.Max    = 20971;
+    Spd_PI.Kp  = *SpdKp;
+    Spd_PI.Ki  = *SpdKi;
+    Spd_PI.Max = *CurMax;
 
+    DataIO.Mode = (uint8_t)(*iMode);
+
+    DataIO.Theta = GetTheta(*iTheta); 
+    DataIO.Np = (uint8_t)(*iNp);
+    DataIO.Ia = GetCur(*iIa);
+    DataIO.Ic = GetCur(*iIc);
+
+    if(DataIO.Mode == 0){
+        DataIO.TargetUd = (int16_t)(*iUd);
+        DataIO.TargetUq = (int16_t)(*iUq);
+    }
+    else if(DataIO.Mode == 1){
+        DataIO.TargetId = (int16_t)(*iId);
+        DataIO.TargetIq = (int16_t)(*iIq);
+    }
+    else if(DataIO.Mode == 2){
+        DataIO.TargetSpd = (int32_t)(*iSpd);
+    }
+    
     /* 调用函数接口 */
-    FOC(&D_PI,   &Q_PI,  &Spd_PI,    &Spd_Tick,
-        *iTheta, *iNp,    oSinTheta,  oCosTheta, 
-        *iId,    *iIq,    oUx,        oUy,
-         oU1,     oU2,    oU3,        oSector,
-         oCCRa,   oCCRb,  oCCRc,
-        *iIa,    *iIc,    oIx,        oIy,
-         oId,     oIq,    oUd,        oUq,
-         oSpd);
+    FOC(&D_PI, &Q_PI, &Spd_PI, &DataIO);
+
+    *oSinTheta = DataIO.SinTheta;
+    *oCosTheta = DataIO.CosTheta;
+    *oUx = DataIO.Ux;
+    *oUy = DataIO.Uy;
+    *oU1 = DataIO.U1;
+    *oU2 = DataIO.U2;
+    *oU3 = DataIO.U3;
+    *oSector = DataIO.Sector;
+    *oCCRa = DataIO.CCRa;
+    *oCCRb = DataIO.CCRb;
+    *oCCRc = DataIO.CCRc;
+    *oIx = DataIO.Ix;
+    *oIy = DataIO.Iy;
+    *oId = DataIO.PresentId;
+    *oIq = DataIO.PresentIq;
+    *oUd = DataIO.PresentUd;
+    *oUq = DataIO.PresentUq;
+    *oSpd = DataIO.PresentSpd;
 }
 
 /* 用于存储全局变量和运行时参数，在确定端口的宽度和采样时间后调用 */
@@ -179,10 +245,16 @@ static void mdlOutputs(SimStruct *S, int_T tid){
 static void mdlSetWorkWidths(SimStruct *S)
 {
      /* 设置运行时参数的数量 */
-    if (!ssSetNumRunTimeParams(S, 1)) return;
+    if (!ssSetNumRunTimeParams(S, 7)) return;
 
     /* 注册参数 */
-    ssRegDlgParamAsRunTimeParam(S, 0,  0,  "Np",   ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 0,  0,  "Np",     ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 1,  1,  "CurKp",  ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 2,  2,  "CurKi",  ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 3,  3,  "VolMax", ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 4,  4,  "SpdKp",  ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 5,  5,  "SpdKi",  ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 6,  6,  "CurMax", ssGetDataTypeId(S, "double"));
 }
 #endif
 

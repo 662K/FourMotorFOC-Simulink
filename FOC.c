@@ -1,7 +1,7 @@
 #include "FOC.h"
 
 uint32_t GetTheta(double iTheta){
-    return iTheta / (2 * PI) * (1 << 20);
+    return (uint32_t)(iTheta * (1 << 20) / (2 * PI));
 }
 
 uint32_t GetThetaE(uint32_t Theta, uint8_t Np){
@@ -9,8 +9,8 @@ uint32_t GetThetaE(uint32_t Theta, uint8_t Np){
 }
 
 void Cordic(uint32_t ThetaE, int16_t* SinTheta, int16_t* CosTheta){
-    int32_t SinTheta_temp = (1 << 15) * sin(1.0 * ThetaE / (1 << 17) * 2 * PI);
-    int32_t CosTheta_temp = (1 << 15) * cos(1.0 * ThetaE / (1 << 17) * 2 * PI);
+    int32_t SinTheta_temp = (int32_t)((1 << 15) * sin(1.0 * ThetaE / (1 << 17) * 2 * PI));
+    int32_t CosTheta_temp = (int32_t)((1 << 15) * cos(1.0 * ThetaE / (1 << 17) * 2 * PI));
 
     if(SinTheta_temp > 32767)
         *SinTheta = 32767;
@@ -151,23 +151,17 @@ void GetCCR(int16_t U1, int16_t U2, int16_t U3, uint8_t Sector, uint16_t* CCRa, 
     }
 }
 
-void GetCur(double iIa, double iIc, int16_t* Ia, int16_t* Ic){
-    int16_t Ia_temp = iIa * 2048 / 5;
-    int16_t Ic_temp = iIc * 2048 / 5;
+int16_t GetCur(double iI){
+    int16_t I_temp = (int16_t)(iI * 2048 / 5);
 
-    if(Ia_temp > 2047)
-        *Ia = 2047;
-    else if(Ia_temp < -2047)
-        *Ia = -2047;
+    if(I_temp > 2047)
+        I_temp = 2047;
+    else if(I_temp < -2047)
+        I_temp = -2047;
     else
-        *Ia = Ia_temp;
-
-    if(Ic_temp > 2047)
-        *Ic = 2047;
-    else if(Ic_temp < -2047)
-        *Ic = -2047;
-    else
-        *Ic = Ic_temp;
+        I_temp = I_temp;
+    
+    return I_temp;
 }
 
 void Clarke(int16_t Ia, int16_t Ic, int16_t* Ix, int16_t* Iy){
@@ -208,7 +202,7 @@ void Park(int16_t Ix, int16_t Iy, int16_t SinTheta, int16_t CosTheta, int16_t* I
         *Iq = Iq_temp;
 }
 
-double CurPID(PI_str* pPI, int16_t Target, int16_t Present){
+int16_t CurPID(PI_str* pPI, int16_t Target, int16_t Present){
     int32_t Error = Target - Present;
     uint8_t ui_flag = !(((pPI->Out_temp > pPI->Max) || (pPI->Out_temp < -pPI->Max)) && (pPI->Out_temp * Error >= 0));
     
@@ -217,7 +211,7 @@ double CurPID(PI_str* pPI, int16_t Target, int16_t Present){
     
     pPI->Out_temp = (pPI->up + pPI->ui) >> 9;
     
-    double PIout = 0;
+    int16_t PIout = 0;
     
     if(pPI->Out_temp > pPI->Max)
         PIout = pPI->Max;
@@ -229,7 +223,7 @@ double CurPID(PI_str* pPI, int16_t Target, int16_t Present){
     return PIout;
 }
 
-double SpdPID(PI_str* pPI, int16_t Target, int16_t Present){
+int16_t SpdPID(PI_str* pPI, int16_t Target, int16_t Present){
     int32_t Error = Target - Present;
     uint8_t ui_flag = !(((pPI->Out_temp > pPI->Max) || (pPI->Out_temp < -pPI->Max)) && (pPI->Out_temp * Error >= 0));
     
@@ -238,7 +232,7 @@ double SpdPID(PI_str* pPI, int16_t Target, int16_t Present){
     
     pPI->Out_temp = (pPI->up + pPI->ui) >> 11;
     
-    double PIout = 0;
+    int16_t PIout = 0;
     
     if(pPI->Out_temp > pPI->Max)
         PIout = pPI->Max;
@@ -257,65 +251,57 @@ void Spd_Timer(uint8_t* Spd_Tick){
         *Spd_Tick = 0;
 }
 
-int32_t GetSpd(uint32_t Theta, uint8_t Spd_Tick){
-    static uint32_t Theta_temp = 0;
-    static int32_t Speed = 0;
-
+void GetSpd(uint32_t Theta, uint32_t* Theta_temp, uint8_t Spd_Tick, int16_t* Speed){
     if(Spd_Tick == 0){
-        Speed = (Theta - Theta_temp) & 0xFFFFF;
-        Theta_temp = Theta;
-    }
+        int32_t Speed_temp = (Theta - *Theta_temp) & 0xFFFFF;
+        *Theta_temp = Theta;
 
-    return Speed;
+        if(Speed_temp > 32767)
+            *Speed = 32767;
+        else if(Speed_temp < -32767)
+            *Speed = -32767;
+        else
+            *Speed = Speed_temp;
+    }
 }
 
-void FOC(PI_str* D_PI,   PI_str* Q_PI,  PI_str* Spd_PI,    uint8_t* Spd_Tick,
-         double  iTheta, double  iNp,   double* oSinTheta, double*  oCosTheta, 
-         double  iId,    double  iIq,   double* oUx,       double*  oUy,
-         double* oU1,    double* oU2,   double* oU3,       double*  oSector,
-         double* oCCRa,  double* oCCRb, double* oCCRc,
-         double  iIa,    double  iIc,   double* oIx,       double*  oIy,
-         double* oId,    double* oIq,   double* oUd,       double*  oUq,
-         double* oSpd){
+void FOC(PI_str* D_PI, PI_str* Q_PI, PI_str* Spd_PI, DataIO_str* DataIO){
+    Spd_Timer(&(DataIO->Spd_Tick));
 
-    uint32_t Theta = GetTheta(iTheta); uint8_t  Np = (uint8_t)iNp;
-    int16_t  TargetId = (int16_t)iId; int16_t  TargetIq = (int16_t)iIq;
+    uint32_t ThetaE = GetThetaE(DataIO->Theta, DataIO->Np);
+    
+    GetSpd(DataIO->Theta, &DataIO->Theta_temp, DataIO->Spd_Tick, &DataIO->PresentSpd);
+    Cordic(ThetaE, &DataIO->SinTheta, &DataIO->CosTheta);
+    Clarke(DataIO->Ia, DataIO->Ic, &DataIO->Ix, &DataIO->Iy);
+    Park(DataIO->Ix, DataIO->Iy, DataIO->SinTheta, DataIO->CosTheta, &DataIO->PresentId, &DataIO->PresentIq);
 
-    int16_t  SinTheta, CosTheta;
-    int16_t  Ia, Ic;
-    int16_t  Ix, Iy;
-    int16_t  PresentId, PresentIq;
-    int16_t  Ud, Uq;
-    int16_t  Ux, Uy;
-    int16_t  U1, U2, U3;
-    int8_t   Sector;
-    uint16_t CCRa, CCRb, CCRc;
+    if(DataIO->Mode == 0){
+        InvPark(DataIO->TargetUd, DataIO->TargetUq, DataIO->SinTheta, DataIO->CosTheta, &DataIO->Ux, &DataIO->Uy);
+        InvClarke(DataIO->Ux, DataIO->Uy, &DataIO->U1, &DataIO->U2, &DataIO->U3);
+        DataIO->Sector = GetSector(DataIO->U1, DataIO->U2, DataIO->U3);
+        GetCCR(DataIO->U1, DataIO->U2, DataIO->U3, DataIO->Sector, &DataIO->CCRa, &DataIO->CCRb, &DataIO->CCRc);
+    }
+    else if(DataIO->Mode == 1){
+        DataIO->PresentUd = CurPID(D_PI, DataIO->TargetId, DataIO->PresentId);
+        DataIO->PresentUq = CurPID(Q_PI, DataIO->TargetIq, DataIO->PresentIq);
 
-    Spd_Timer(Spd_Tick);
+        InvPark(DataIO->PresentUd, DataIO->PresentUq, DataIO->SinTheta, DataIO->CosTheta, &DataIO->Ux, &DataIO->Uy);
+        InvClarke(DataIO->Ux, DataIO->Uy, &DataIO->U1, &DataIO->U2, &DataIO->U3);
+        DataIO->Sector = GetSector(DataIO->U1, DataIO->U2, DataIO->U3);
+        GetCCR(DataIO->U1, DataIO->U2, DataIO->U3, DataIO->Sector, &DataIO->CCRa, &DataIO->CCRb, &DataIO->CCRc);
+    }
+    else if(DataIO->Mode == 2){
+        if(DataIO->Spd_Tick == 0){
+            DataIO->TargetId = 0;
+            DataIO->TargetIq = SpdPID(Spd_PI, DataIO->TargetSpd, DataIO->PresentSpd);
+        }
 
-    uint32_t ThetaE = GetThetaE(Theta, Np);
-    GetCur(iIa, iIc, &Ia, &Ic);
-    int32_t Speed = GetSpd(Theta, *Spd_Tick);
+        DataIO->PresentUd = CurPID(D_PI, DataIO->TargetId, DataIO->PresentId);
+        DataIO->PresentUq = CurPID(Q_PI, DataIO->TargetIq, DataIO->PresentIq);
 
-    Cordic(ThetaE, &SinTheta, &CosTheta);
-    Clarke(Ia, Ic, &Ix, &Iy);
-    Park(Ix, Iy, SinTheta, CosTheta, &PresentId, &PresentIq);
-
-    Ud = CurPID(D_PI, TargetId, PresentId);
-    Uq = CurPID(Q_PI, TargetIq, PresentIq);
-
-    InvPark(Ud, Uq, SinTheta, CosTheta, &Ux, &Uy);
-    InvClarke(Ux, Uy, &U1, &U2, &U3);
-    Sector = GetSector(U1, U2, U3);
-    GetCCR(U1, U2, U3, Sector, &CCRa, &CCRb, &CCRc);
-
-    *oSinTheta = SinTheta; *oCosTheta = CosTheta;
-    *oUx = Ux; *oUy = Uy;
-    *oU1 = U1; *oU2 = U2; *oU3 = U3;
-    *oSector = Sector;
-    *oCCRa = CCRa; *oCCRb = CCRb; *oCCRc = CCRc;
-    *oIx = Ix; *oIy = Iy;
-    *oId = PresentId; *oIq = PresentIq;
-    *oUd = Ud; *oUq = Uq;
-    *oSpd = Speed;
+        InvPark(DataIO->PresentUd, DataIO->PresentUq, DataIO->SinTheta, DataIO->CosTheta, &DataIO->Ux, &DataIO->Uy);
+        InvClarke(DataIO->Ux, DataIO->Uy, &DataIO->U1, &DataIO->U2, &DataIO->U3);
+        DataIO->Sector = GetSector(DataIO->U1, DataIO->U2, DataIO->U3);
+        GetCCR(DataIO->U1, DataIO->U2, DataIO->U3, DataIO->Sector, &DataIO->CCRa, &DataIO->CCRb, &DataIO->CCRc);
+    }
 }
