@@ -251,10 +251,11 @@ void Spd_Timer(uint8_t* Spd_Tick){
         *Spd_Tick = 0;
 }
 
-void GetSpd(uint32_t Theta, uint32_t* Theta_temp, uint8_t Spd_Tick, int16_t* Speed){
+void GetSpd(uint32_t Theta, uint32_t* Theta_Pre, uint8_t Spd_Tick, int16_t* Speed, int16_t* Speed_Pre, uint16_t Alpha){
     if(Spd_Tick == 0){
-        int32_t Speed_temp = (Theta - *Theta_temp) & 0xFFFFF;
-        *Theta_temp = Theta;
+        int32_t Speed_temp = (Theta - *Theta_Pre) & 0xFFFFF;
+
+        Speed_temp = ((32767 - Alpha) * (*Speed_Pre) + Alpha * Speed_temp) >> 15;
 
         if(Speed_temp > 32767)
             *Speed = 32767;
@@ -262,6 +263,9 @@ void GetSpd(uint32_t Theta, uint32_t* Theta_temp, uint8_t Spd_Tick, int16_t* Spe
             *Speed = -32767;
         else
             *Speed = Speed_temp;
+        
+        *Theta_Pre = Theta;
+        *Speed_Pre = *Speed;
     }
 }
 
@@ -270,7 +274,7 @@ void FOC(PI_str* D_PI, PI_str* Q_PI, PI_str* Spd_PI, DataIO_str* DataIO){
 
     uint32_t ThetaE = GetThetaE(DataIO->Theta, DataIO->Np);
     
-    GetSpd(DataIO->Theta, &DataIO->Theta_temp, DataIO->Spd_Tick, &DataIO->PresentSpd);
+    GetSpd(DataIO->Theta, &DataIO->Theta_Pre, DataIO->Spd_Tick, &DataIO->PresentSpd, &DataIO->PresentSpd_Pre, DataIO->Alpha);
     Cordic(ThetaE, &DataIO->SinTheta, &DataIO->CosTheta);
     Clarke(DataIO->Ia, DataIO->Ic, &DataIO->Ix, &DataIO->Iy);
     Park(DataIO->Ix, DataIO->Iy, DataIO->SinTheta, DataIO->CosTheta, &DataIO->PresentId, &DataIO->PresentIq);

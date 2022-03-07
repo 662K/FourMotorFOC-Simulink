@@ -18,7 +18,7 @@ static void mdlInitializeSizes(SimStruct *S)
 
     memset(&DataIO, 0, sizeof(DataIO));
     /* 设置参数数量 */
-    ssSetNumSFcnParams(S, 7);
+    ssSetNumSFcnParams(S, 8);
 
     ssSetSFcnParamTunable(S, 0, 1);
     ssSetSFcnParamTunable(S, 1, 1);
@@ -27,6 +27,7 @@ static void mdlInitializeSizes(SimStruct *S)
     ssSetSFcnParamTunable(S, 4, 1);
     ssSetSFcnParamTunable(S, 5, 1);
     ssSetSFcnParamTunable(S, 6, 1);
+    ssSetSFcnParamTunable(S, 7, 1);
 
     /* 设置输入端口数量 */
     if (!ssSetNumInputPorts(S, 9)) return;
@@ -78,7 +79,7 @@ static void mdlInitializeSizes(SimStruct *S)
     ssSetInputPortRequiredContiguous(S, 8, 1);	
 
     /* 设置输出端口数量 */
-    if (!ssSetNumOutputPorts(S, 18)) return;
+    if (!ssSetNumOutputPorts(S, 19)) return;
 
     /* 配置输出端口 */
     ssSetOutputPortDataType(S, 0, SS_DOUBLE);
@@ -134,6 +135,9 @@ static void mdlInitializeSizes(SimStruct *S)
 
     ssSetOutputPortDataType(S, 17, SS_DOUBLE);
     ssSetOutputPortWidth(S, 17, 1);
+
+    ssSetOutputPortDataType(S, 18, SS_DOUBLE);
+    ssSetOutputPortWidth(S, 18, 1);
 }
 
 /* 模块采样时间初始化函敿 */
@@ -165,6 +169,7 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     real_T* SpdKp = (real_T*) ssGetRunTimeParamInfo(S, 4)->data;
     real_T* SpdKi = (real_T*) ssGetRunTimeParamInfo(S, 5)->data;
     real_T* CurMax = (real_T*) ssGetRunTimeParamInfo(S, 6)->data;
+    real_T* Alpha = (real_T*) ssGetRunTimeParamInfo(S, 7)->data;
 
     real_T* oSinTheta = (real_T*) ssGetOutputPortSignal(S, 0);
     real_T* oCosTheta = (real_T*) ssGetOutputPortSignal(S, 1);
@@ -184,6 +189,7 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     real_T* oUd = (real_T*) ssGetOutputPortSignal(S, 15);
     real_T* oUq = (real_T*) ssGetOutputPortSignal(S, 16);
     real_T* oSpd = (real_T*) ssGetOutputPortSignal(S, 17);
+    real_T* oTest = (real_T*) ssGetOutputPortSignal(S, 18);
 
     D_PI.Kp    = *CurKp;
     D_PI.Ki    = *CurKi;
@@ -203,6 +209,8 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     DataIO.Np = (uint8_t)(*iNp);
     DataIO.Ia = GetCur(*iIa);
     DataIO.Ic = GetCur(*iIc);
+
+    DataIO.Alpha = (uint16_t)(*Alpha);
 
     if(DataIO.Mode == 0){
         DataIO.TargetUd = (int16_t)(*iUd);
@@ -237,6 +245,7 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     *oUd = DataIO.PresentUd;
     *oUq = DataIO.PresentUq;
     *oSpd = DataIO.PresentSpd;
+    *oTest = DataIO.Test;
 }
 
 /* 用于存储全局变量和运行时参数，在确定端口的宽度和采样时间后调用 */
@@ -245,7 +254,7 @@ static void mdlOutputs(SimStruct *S, int_T tid){
 static void mdlSetWorkWidths(SimStruct *S)
 {
      /* 设置运行时参数的数量 */
-    if (!ssSetNumRunTimeParams(S, 7)) return;
+    if (!ssSetNumRunTimeParams(S, 8)) return;
 
     /* 注册参数 */
     ssRegDlgParamAsRunTimeParam(S, 0,  0,  "Np",     ssGetDataTypeId(S, "double"));
@@ -255,6 +264,7 @@ static void mdlSetWorkWidths(SimStruct *S)
     ssRegDlgParamAsRunTimeParam(S, 4,  4,  "SpdKp",  ssGetDataTypeId(S, "double"));
     ssRegDlgParamAsRunTimeParam(S, 5,  5,  "SpdKi",  ssGetDataTypeId(S, "double"));
     ssRegDlgParamAsRunTimeParam(S, 6,  6,  "CurMax", ssGetDataTypeId(S, "double"));
+    ssRegDlgParamAsRunTimeParam(S, 7,  7,  "Alpha",  ssGetDataTypeId(S, "double"));
 }
 #endif
 

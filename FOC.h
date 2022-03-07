@@ -17,9 +17,11 @@ typedef struct{
 
 typedef struct{
     uint8_t Spd_Tick;
-    uint32_t Theta_temp;
+    uint32_t Theta_Pre;
     int16_t PresentSpd;
+    int16_t PresentSpd_Pre;
     int16_t TargetSpd;
+    uint16_t Alpha;
 
     uint32_t Theta;
     uint8_t Np;
@@ -59,6 +61,8 @@ typedef struct{
     int16_t TargetUq;
 
     uint8_t Mode;
+
+    int32_t Test;
 }DataIO_str;
 
 #define PI acos(-1)
