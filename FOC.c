@@ -251,11 +251,10 @@ void Spd_Timer(uint8_t* Spd_Tick){
         *Spd_Tick = 0;
 }
 
-void GetSpd(uint32_t Theta, uint32_t* Theta_Pre, uint8_t Spd_Tick, int16_t* Speed, int16_t* Speed_Pre, uint16_t Alpha){
+void GetSpd(uint32_t Theta, uint32_t* Theta_Pre, uint8_t Spd_Tick, int16_t* Speed, int16_t* Speed_Pre, int16_t Alpha){
     if(Spd_Tick == 0){
-        int32_t Speed_temp = (Theta - *Theta_Pre) & 0xFFFFF;
-
-        Speed_temp = ((32767 - Alpha) * (*Speed_Pre) + Alpha * Speed_temp) >> 15;
+        int32_t Speed_temp = (Theta - *Theta_Pre);
+        Speed_temp = ((32767 - Alpha) * (*Speed_Pre) + Alpha * (int16_t)Speed_temp) / 32767;
 
         if(Speed_temp > 32767)
             *Speed = 32767;
@@ -263,7 +262,7 @@ void GetSpd(uint32_t Theta, uint32_t* Theta_Pre, uint8_t Spd_Tick, int16_t* Spee
             *Speed = -32767;
         else
             *Speed = Speed_temp;
-        
+            
         *Theta_Pre = Theta;
         *Speed_Pre = *Speed;
     }

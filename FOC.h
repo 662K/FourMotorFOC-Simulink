@@ -21,7 +21,7 @@ typedef struct{
     int16_t PresentSpd;
     int16_t PresentSpd_Pre;
     int16_t TargetSpd;
-    uint16_t Alpha;
+    int16_t Alpha;
 
     uint32_t Theta;
     uint8_t Np;

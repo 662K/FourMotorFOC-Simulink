@@ -210,7 +210,7 @@ static void mdlOutputs(SimStruct *S, int_T tid){
     DataIO.Ia = GetCur(*iIa);
     DataIO.Ic = GetCur(*iIc);
 
-    DataIO.Alpha = (uint16_t)(*Alpha);
+    DataIO.Alpha = (int16_t)(*Alpha);
 
     if(DataIO.Mode == 0){
         DataIO.TargetUd = (int16_t)(*iUd);
